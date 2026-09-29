@@ -13,8 +13,8 @@ Supervised AWS Systems Manager port-forwarding tunnels to RDS, Aurora, ElastiCac
 ```
 $ ssmtun up app-prd-ro app-dev
 2 tunnel(s) starting; press Ctrl-C to stop all
-10:21:04 [app-dev] up: 127.0.0.1:20001 -> dev-app.xxxx.ap-northeast-1.rds.amazonaws.com:5432 via i-0123456789abcdef0 (app), session akinori-abc123
-10:21:05 [app-prd-ro] up: 127.0.0.1:30011 -> prd-app.cluster-ro-xxxx.ap-northeast-1.rds.amazonaws.com:5432 via i-0fedcba9876543210 (app), session akinori-def456
+10:21:04 [app-dev] up: 127.0.0.1:20001 -> dev-app.xxxx.ap-northeast-1.rds.amazonaws.com:5432 via i-0123456789abcdef0 (app), session johndoe-abc123
+10:21:05 [app-prd-ro] up: 127.0.0.1:30011 -> prd-app.cluster-ro-xxxx.ap-northeast-1.rds.amazonaws.com:5432 via i-0fedcba9876543210 (app), session johndoe-def456
 ```
 
 ## Install
