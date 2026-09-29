@@ -1,0 +1,56 @@
+version: 2
+
+project_name: ssmtun
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/ssmtun
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X github.com/ak-inori/ssmtun/internal/cli.Version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^ci:", "^chore:"]
+
+brews:
+  - repository:
+      owner: ak-inori
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/ak-inori/ssmtun
+    description: Supervised AWS SSM port-forwarding tunnels to RDS and friends
+    license: MIT
+    install: |
+      bin.install "ssmtun"
+      generate_completions_from_executable(bin/"ssmtun", "completion")
+    test: |
+      system "#{bin}/ssmtun", "--version"
+    caveats: |
+      ssmtun drives the AWS Session Manager plugin, which Homebrew ships as a cask:
+        brew install --cask session-manager-plugin
+      Then create a config with `ssmtun config init` and run `ssmtun doctor`.
+
+release:
+  github:
+    owner: ak-inori
+    name: ssmtun
+  draft: false

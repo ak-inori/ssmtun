@@ -1,0 +1,4 @@
+/dist/
+/ssmtun
+*.test
+.DS_Store
