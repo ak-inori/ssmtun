@@ -2,3 +2,4 @@
 /ssmtun
 *.test
 .DS_Store
+/.task/
