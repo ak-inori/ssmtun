@@ -17,6 +17,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make lint
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task lint
       - run: go test -race ./...
       - run: go build ./...

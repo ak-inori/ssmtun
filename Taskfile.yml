@@ -1,0 +1,55 @@
+version: '3'
+
+vars:
+  BIN: ssmtun
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+  LDFLAGS: -s -w -X github.com/ak-inori/ssmtun/internal/cli.Version={{.VERSION}}
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  build:
+    desc: Build ./{{.BIN}} with the version embedded
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+    generates:
+      - '{{.BIN}}'
+    cmds:
+      - go build -trimpath -ldflags '{{.LDFLAGS}}' -o {{.BIN}} ./cmd/ssmtun
+
+  install:
+    desc: Install into $(go env GOPATH)/bin
+    cmds:
+      - go install -trimpath -ldflags '{{.LDFLAGS}}' ./cmd/ssmtun
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: go vet and gofmt check
+    cmds:
+      - go vet ./...
+      - |
+        files=$(gofmt -l .)
+        if [ -n "$files" ]; then
+          echo "$files"
+          echo 'gofmt: files need formatting'
+          exit 1
+        fi
+
+  fmt:
+    desc: Format sources
+    cmds:
+      - gofmt -w .
+
+  clean:
+    desc: Remove build outputs
+    cmds:
+      - rm -rf {{.BIN}} dist
