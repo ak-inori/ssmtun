@@ -7,13 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/ak-inori/ssmtun/internal/ansi"
 	"github.com/ak-inori/ssmtun/internal/awsx"
 	"github.com/ak-inori/ssmtun/internal/config"
 	"github.com/ak-inori/ssmtun/internal/probe"
@@ -147,12 +147,12 @@ func startForeground(ctx context.Context, self string, targets []*config.Target,
 		done chan error
 	}
 	var procs []*running
+	colors, err := assignColors(targets, noColor)
+	if err != nil {
+		return err
+	}
 	for i, t := range targets {
-		extra := []string{"--color-index", strconv.Itoa(i)}
-		if noColor {
-			extra = append(extra, "--no-color")
-		}
-		cmd := workerCommand(self, t, false, extra...)
+		cmd := workerCommand(self, t, false, "--color", colors[i])
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Start(); err != nil {
@@ -288,4 +288,16 @@ func startDetached(ctx context.Context, self string, targets []*config.Target) e
 		return errors.New(strings.Join(failures, "\n"))
 	}
 	return nil
+}
+
+// assignColors gives every target a distinct log color unless color is off.
+func assignColors(targets []*config.Target, noColor bool) ([]string, error) {
+	if noColor {
+		return make([]string, len(targets)), nil
+	}
+	explicit := make([]string, len(targets))
+	for i, t := range targets {
+		explicit[i] = t.Color
+	}
+	return ansi.Assign(explicit)
 }

@@ -13,8 +13,8 @@ import (
 
 // newWorkerCmd is the hidden per-tunnel supervisor spawned by `up`.
 func newWorkerCmd() *cobra.Command {
-	var detached, noColor bool
-	var colorIndex int
+	var detached bool
+	var color string
 	cmd := &cobra.Command{
 		Use:    "worker <target>",
 		Hidden: true,
@@ -28,12 +28,8 @@ func newWorkerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			color := ""
-			if !noColor && ansi.Enabled(os.Stderr) {
-				color, _ = ansi.Parse(t.Color)
-				if color == "" {
-					color = ansi.Palette[colorIndex%len(ansi.Palette)]
-				}
+			if !ansi.Enabled(os.Stderr) {
+				color = ""
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 			defer stop()
@@ -47,7 +43,6 @@ func newWorkerCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&detached, "detached", false, "mark the worker as detached in its state file")
-	cmd.Flags().BoolVar(&noColor, "no-color", false, "disable colored output")
-	cmd.Flags().IntVar(&colorIndex, "color-index", 0, "palette slot used when the target has no color configured")
+	cmd.Flags().StringVar(&color, "color", "", "SGR code for the log prefix, resolved by `up`; empty disables color")
 	return cmd
 }

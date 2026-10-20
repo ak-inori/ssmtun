@@ -46,7 +46,7 @@ targets:
     port: 5432
     local_port: 20001
     engine: postgres                   # postgres | mysql | tcp (guessed from port)
-    color: cyan                        # log prefix color (auto-assigned like docker compose when omitted)
+    color: cyan                        # log prefix color (auto-assigned when omitted, see below)
 ```
 
 Files are merged in this order, later files overriding earlier ones per target:
@@ -54,6 +54,8 @@ Files are merged in this order, later files overriding earlier ones per target:
 1. `~/.config/ssmtun/config.yaml`
 2. `~/.config/ssmtun/config.d/*.yaml` — drop a team-managed file here
 3. `./.ssmtun.yaml`, searched upward from the current directory — commit one to a project repo
+
+`color` accepts a basic name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`), a bright variant such as `bright-red`, a 256-color index from `0` to `255`, or a hex code such as `#ff8800` or `#f80`. Hex codes need a terminal with 24-bit color support, which macOS Terminal.app lacks. Targets without a color get one from a built-in palette, skipping colors other targets in the same `up` already use.
 
 ## Use
 

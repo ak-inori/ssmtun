@@ -314,5 +314,8 @@ targets:
   #   port: 5432
   #   local_port: 20001
   #   engine: postgres             # postgres | mysql | tcp (guessed from port when omitted)
-  #   color: cyan                  # log prefix color; auto-assigned when omitted
+  #   color: cyan                  # log prefix color; auto-assigned when omitted.
+  #                                # Accepts black|red|green|yellow|blue|magenta|cyan|white,
+  #                                # bright-<name>, 0-255 (256-color index) or #rrggbb
+  #                                # (24-bit; not rendered by macOS Terminal.app).
 `

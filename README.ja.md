@@ -35,7 +35,7 @@ targets:
     host: dev-app.xxxx.ap-northeast-1.rds.amazonaws.com
     port: 5432
     local_port: 20001
-    color: cyan                        # ログ接頭辞の色。省略時は docker compose のように自動割り当て
+    color: cyan                        # ログ接頭辞の色。省略時は自動割り当て（後述）
 ```
 
 設定ファイルは次の順で読み込み、後のファイルが同名ターゲットを上書きします。
@@ -43,6 +43,8 @@ targets:
 1. `~/.config/ssmtun/config.yaml`
 2. `~/.config/ssmtun/config.d/*.yaml`（チーム配布用）
 3. カレントディレクトリから上に探した `.ssmtun.yaml`（リポジトリにコミットする用）
+
+`color` には基本色の名前（`black` `red` `green` `yellow` `blue` `magenta` `cyan` `white`）、その明るい版（`bright-red` など）、256 色パレットの番号（`0`〜`255`）、カラーコード（`#ff8800` や `#f80`）を指定できます。カラーコードは端末が 24 ビットカラーに対応している必要があり、macOS 標準の Terminal.app では表示されません。色を省略したターゲットには組み込みのパレットから順に割り当てられ、同じ `up` で他のターゲットが使っている色は避けられます。
 
 ## 使い方
 
