@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/ak-inori/ssmtun/internal/ansi"
 )
 
 const (
@@ -40,6 +42,7 @@ type Target struct {
 	Port        int    `yaml:"port"`
 	LocalPort   int    `yaml:"local_port"`
 	Engine      Engine `yaml:"engine,omitempty"`
+	Color       string `yaml:"color,omitempty"`
 	Description string `yaml:"description,omitempty"`
 }
 
@@ -242,6 +245,9 @@ func (c *Config) validate() error {
 		default:
 			problems = append(problems, fmt.Sprintf("engine %q must be postgres, mysql or tcp", t.Engine))
 		}
+		if _, err := ansi.Parse(t.Color); err != nil {
+			problems = append(problems, err.Error())
+		}
 		if other, dup := usedPorts[t.LocalPort]; dup && t.LocalPort > 0 {
 			problems = append(problems, fmt.Sprintf("local_port %d is also used by %s", t.LocalPort, other))
 		}
@@ -308,4 +314,5 @@ targets:
   #   port: 5432
   #   local_port: 20001
   #   engine: postgres             # postgres | mysql | tcp (guessed from port when omitted)
+  #   color: cyan                  # log prefix color; auto-assigned when omitted
 `

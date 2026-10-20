@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -23,8 +24,7 @@ import (
 const detachReadyTimeout = 90 * time.Second
 
 func newUpCmd() *cobra.Command {
-	var detach bool
-	var noLogin bool
+	var detach, noLogin, noColor bool
 	cmd := &cobra.Command{
 		Use:   "up <target>...",
 		Short: "Start one supervised tunnel process per target",
@@ -37,15 +37,20 @@ With --detach the tunnels keep running after ssmtun exits; use
 		Args:              cobra.MinimumNArgs(1),
 		ValidArgsFunction: completeTargets,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUp(cmd.Context(), args, detach, noLogin)
+			return runUp(cmd.Context(), args, upOptions{detach: detach, noLogin: noLogin, noColor: noColor})
 		},
 	}
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "run tunnels in the background and return")
 	cmd.Flags().BoolVar(&noLogin, "no-login", false, "skip the SSO credential check before starting")
+	cmd.Flags().BoolVar(&noColor, "no-color", false, "disable colored log prefixes (NO_COLOR is honored too)")
 	return cmd
 }
 
-func runUp(ctx context.Context, names []string, detach, noLogin bool) error {
+type upOptions struct {
+	detach, noLogin, noColor bool
+}
+
+func runUp(ctx context.Context, names []string, opts upOptions) error {
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -91,7 +96,7 @@ func runUp(ctx context.Context, names []string, detach, noLogin bool) error {
 		return nil
 	}
 
-	if !noLogin {
+	if !opts.noLogin {
 		for _, profile := range config.Profiles(toStart) {
 			if err := awsx.EnsureLogin(ctx, profile, os.Stderr); err != nil {
 				return fmt.Errorf("profile %s: %w", profile, err)
@@ -103,10 +108,10 @@ func runUp(ctx context.Context, names []string, detach, noLogin bool) error {
 	if err != nil {
 		return err
 	}
-	if detach {
+	if opts.detach {
 		return startDetached(ctx, self, toStart)
 	}
-	return startForeground(ctx, self, toStart)
+	return startForeground(ctx, self, toStart, opts.noColor)
 }
 
 func describeBusyPort(t *config.Target) string {
@@ -121,17 +126,18 @@ func describeBusyPort(t *config.Target) string {
 	return fmt.Sprintf("[%s] local port %d is already in use by %s", t.Name, t.LocalPort, strings.Join(parts, ", "))
 }
 
-func workerCommand(self string, t *config.Target, detach bool) *exec.Cmd {
+func workerCommand(self string, t *config.Target, detach bool, extra ...string) *exec.Cmd {
 	args := []string{"worker", t.Name}
 	if detach {
 		args = append(args, "--detached")
 	}
+	args = append(args, extra...)
 	cmd := exec.Command(self, args...)
 	cmd.Env = os.Environ()
 	return cmd
 }
 
-func startForeground(ctx context.Context, self string, targets []*config.Target) error {
+func startForeground(ctx context.Context, self string, targets []*config.Target, noColor bool) error {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 
@@ -141,8 +147,12 @@ func startForeground(ctx context.Context, self string, targets []*config.Target)
 		done chan error
 	}
 	var procs []*running
-	for _, t := range targets {
-		cmd := workerCommand(self, t, false)
+	for i, t := range targets {
+		extra := []string{"--color-index", strconv.Itoa(i)}
+		if noColor {
+			extra = append(extra, "--no-color")
+		}
+		cmd := workerCommand(self, t, false, extra...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Start(); err != nil {

@@ -46,6 +46,7 @@ targets:
     port: 5432
     local_port: 20001
     engine: postgres                   # postgres | mysql | tcp (guessed from port)
+    color: cyan                        # log prefix color (auto-assigned like docker compose when omitted)
 ```
 
 Files are merged in this order, later files overriding earlier ones per target:
@@ -58,7 +59,7 @@ Files are merged in this order, later files overriding earlier ones per target:
 
 | Command | What it does |
 |---|---|
-| `ssmtun up <target>...` | Start tunnels in the foreground; Ctrl-C stops them all |
+| `ssmtun up <target>...` | Start tunnels in the foreground; Ctrl-C stops them all. Log prefixes are colored per target (`--no-color` or `NO_COLOR` to disable) |
 | `ssmtun up -d <target>...` | Start in the background and return once each tunnel is up |
 | `ssmtun status` | Show running tunnels, uptime and reconnect counts |
 | `ssmtun down <target>... \| --all` | Stop background tunnels (`--force` also kills strangers on the port) |

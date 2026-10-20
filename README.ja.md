@@ -35,6 +35,7 @@ targets:
     host: dev-app.xxxx.ap-northeast-1.rds.amazonaws.com
     port: 5432
     local_port: 20001
+    color: cyan                        # ログ接頭辞の色。省略時は docker compose のように自動割り当て
 ```
 
 設定ファイルは次の順で読み込み、後のファイルが同名ターゲットを上書きします。
@@ -47,7 +48,7 @@ targets:
 
 | コマンド | 内容 |
 |---|---|
-| `ssmtun up <target>...` | フォアグラウンドで起動。Ctrl-C で全部停止 |
+| `ssmtun up <target>...` | フォアグラウンドで起動。Ctrl-C で全部停止。ログ接頭辞はターゲットごとに色分け（`--no-color` か `NO_COLOR` で無効） |
 | `ssmtun up -d <target>...` | バックグラウンドで起動し、接続完了を確認して戻る |
 | `ssmtun status` | 稼働中トンネルの一覧、稼働時間、再接続回数 |
 | `ssmtun down <target>... \| --all` | 停止。`--force` でポートを握る他プロセスも kill |
