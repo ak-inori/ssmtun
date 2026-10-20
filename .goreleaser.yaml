@@ -30,28 +30,6 @@ changelog:
   filters:
     exclude: ["^docs:", "^ci:", "^chore:"]
 
-brews:
-  - repository:
-      owner: ak-inori
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Formula
-    # Publish the formula only when a tap token is configured; otherwise the
-    # release still ships binaries and the formula is just left in dist/.
-    skip_upload: "{{ if .Env.HOMEBREW_TAP_GITHUB_TOKEN }}false{{ else }}true{{ end }}"
-    homepage: https://github.com/ak-inori/ssmtun
-    description: Supervised AWS SSM port-forwarding tunnels to RDS and friends
-    license: MIT
-    install: |
-      bin.install "ssmtun"
-      generate_completions_from_executable(bin/"ssmtun", "completion")
-    test: |
-      system "#{bin}/ssmtun", "--version"
-    caveats: |
-      ssmtun drives the AWS Session Manager plugin, which Homebrew ships as a cask:
-        brew install --cask session-manager-plugin
-      Then create a config with `ssmtun config init` and run `ssmtun doctor`.
-
 release:
   github:
     owner: ak-inori
