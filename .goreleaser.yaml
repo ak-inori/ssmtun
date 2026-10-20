@@ -36,6 +36,9 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
+    # Publish the formula only when a tap token is configured; otherwise the
+    # release still ships binaries and the formula is just left in dist/.
+    skip_upload: "{{ if .Env.HOMEBREW_TAP_GITHUB_TOKEN }}false{{ else }}true{{ end }}"
     homepage: https://github.com/ak-inori/ssmtun
     description: Supervised AWS SSM port-forwarding tunnels to RDS and friends
     license: MIT
