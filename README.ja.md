@@ -64,7 +64,8 @@ DB クライアントは `127.0.0.1:<local_port>` を向けたままで構いま
 Session Manager はポートフォワードセッションを無操作 20 分（既定）で切り、WebSocket が張り替えに失敗して落ちることもあります。各ワーカーは次のように動きます。
 
 1. SDK で `ssm:StartSession` を呼び、`session-manager-plugin` を直接の子プロセスとして起動（AWS CLI と同じ方式）
-2. `health_interval` ごとにトンネル経由で DB プロトコルのハンドシェイクを行う。PostgreSQL は `CancelRequest`（サーバー側にログを残さず切断で応答）、MySQL は greeting の受信。経路全体の疎通確認であり、同時にアイドルタイマーもリセットする
+2. PostgreSQL のターゲットでは、`health_interval` ごとにトンネル経由で `CancelRequest` を送る（サーバー側にログを残さず切断で応答）。経路全体の疎通確認であり、同時にアイドルタイマーもリセットする
+   MySQL と `tcp` のターゲットはプローブしない。トンネル経由の接続は必ずリモートまで届き、MySQL は認証前に切れた接続を踏み台の IP ごとに数え、`max_connect_errors` に達すると `Host is blocked because of many connection errors` で拒否するため。これらは plugin プロセスの監視だけで管理し、無操作の場合はアイドルタイムアウトで切れたあと再接続する
 3. プローブが 2 回連続で失敗するか plugin が終了したら、セッションを片付けて 1〜30 秒の指数バックオフで再接続
 4. 認証情報が切れたら `auth_required` として待機。別ターミナルで `ssmtun login` すれば自動で復帰
 

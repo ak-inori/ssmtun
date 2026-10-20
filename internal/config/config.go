@@ -303,7 +303,7 @@ const ExampleYAML = `# ssmtun configuration
 #   ./.ssmtun.yaml (searched upward from the current directory)
 
 defaults:
-  health_interval: 15s   # how often each tunnel is probed end-to-end
+  health_interval: 15s   # how often PostgreSQL tunnels are probed end-to-end
   probe_timeout: 5s
 
 targets:

@@ -28,8 +28,9 @@ func newUpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "up <target>...",
 		Short: "Start one supervised tunnel process per target",
-		Long: `Start tunnels. Each target runs in its own process that probes the
-connection every few seconds and reconnects with backoff when it drops.
+		Long: `Start tunnels. Each target runs in its own process that reconnects with
+backoff when the session drops; PostgreSQL tunnels are also probed
+end-to-end every few seconds.
 
 By default ssmtun stays in the foreground and Ctrl-C stops every tunnel.
 With --detach the tunnels keep running after ssmtun exits; use

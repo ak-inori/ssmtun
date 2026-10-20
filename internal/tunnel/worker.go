@@ -81,6 +81,9 @@ func (w *Worker) Run(ctx context.Context) error {
 		default:
 			if wasUp {
 				w.rec.Reconnects++
+				if time.Since(w.rec.ConnectedAt) > stableAfter {
+					w.backoff.Reset()
+				}
 			}
 			w.setStatus(state.StatusReconnecting, err)
 			delay = w.backoff.Next()
@@ -180,10 +183,13 @@ func (w *Worker) runOnce(ctx context.Context) (wasUp bool, err error) {
 	w.setStatus(state.StatusUp, nil)
 	w.Log.Printf("up: 127.0.0.1:%d -> %s:%d via %s (%s), session %s", t.LocalPort, t.Host, t.Port, instanceID, t.Profile, sess.SessionID)
 
-	interval := w.Config.Defaults.HealthInterval
 	timeout := w.Config.Defaults.ProbeTimeout
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	var tick <-chan time.Time
+	if probe.Supported(t.Engine) {
+		ticker := time.NewTicker(w.Config.Defaults.HealthInterval)
+		defer ticker.Stop()
+		tick = ticker.C
+	}
 	failures := 0
 
 	for {
@@ -194,16 +200,13 @@ func (w *Worker) runOnce(ctx context.Context) (wasUp bool, err error) {
 			return true, nil
 		case <-plugin.Done():
 			return true, fmt.Errorf("%s exited: %v", PluginBinary, plugin.Err())
-		case <-ticker.C:
+		case <-tick:
 		}
 
 		err := probe.Run(ctx, t.Engine, t.LocalPort, timeout)
 		w.rec.LastProbeAt = time.Now()
 		if err == nil {
 			failures = 0
-			if time.Since(w.rec.ConnectedAt) > stableAfter {
-				w.backoff.Reset()
-			}
 			w.save()
 			continue
 		}

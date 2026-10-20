@@ -5,7 +5,7 @@ Supervised AWS Systems Manager port-forwarding tunnels to RDS, Aurora, ElastiCac
 `ssmtun` replaces the shell script most teams end up writing around `aws ssm start-session`:
 
 - **Named targets** in YAML, shared through `~/.config/ssmtun/config.d/` or a project-level `.ssmtun.yaml`
-- **One process per tunnel** with an end-to-end health probe every 15 seconds and automatic reconnect with backoff
+- **One process per tunnel** with automatic reconnect with backoff, plus an end-to-end health probe every 15 seconds for PostgreSQL
 - **AWS SSO login** built in (device-code flow, token cache compatible with the AWS CLI)
 - **Clean shutdown**: Ctrl-C or `ssmtun down` ends the SSM session and never leaves `session-manager-plugin` orphans holding your ports
 - **No AWS CLI needed**; only the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
@@ -77,7 +77,8 @@ Point your database client at `127.0.0.1:<local_port>` and keep it there; the po
 Session Manager ends port-forwarding sessions after an idle period (20 minutes by default) and occasionally drops the WebSocket under them. Each `ssmtun` worker:
 
 1. Calls `ssm:StartSession` with the `AWS-StartPortForwardingSessionToRemoteHost` document and runs `session-manager-plugin` as a direct child, the same way the AWS CLI does.
-2. Every `health_interval`, connects through the tunnel and performs a protocol-level handshake: a PostgreSQL `CancelRequest` (answered by a silent close, nothing is logged server-side) or reading the MySQL greeting. This proves the whole path works and counts as traffic for the idle timer.
+2. For PostgreSQL targets, every `health_interval` sends a `CancelRequest` through the tunnel (answered by a silent close, nothing is logged server-side). This proves the whole path works and counts as traffic for the idle timer.
+   MySQL and `tcp` targets are not probed: every connection through the tunnel reaches the remote host, and MySQL counts each one that closes before authenticating against the bastion IP, eventually rejecting it with `Host is blocked because of many connection errors`. These tunnels are supervised through the plugin process alone, so an idle one is closed by the idle timeout and reconnected.
 3. After two consecutive failed probes, or as soon as the plugin exits, tears the session down and reconnects with exponential backoff (1 s to 30 s).
 4. When credentials expire it reports `auth_required` and keeps retrying; run `ssmtun login` in another terminal and it picks the new token up.
 
