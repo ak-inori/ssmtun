@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/ak-inori/ssmtun/internal/config"
 	"github.com/ak-inori/ssmtun/internal/probe"
 	"github.com/ak-inori/ssmtun/internal/state"
 	"github.com/ak-inori/ssmtun/internal/tunnel"
@@ -65,57 +67,106 @@ func runDown(names []string, all, force bool) error {
 		return nil
 	}
 
-	var problems []string
-	for _, name := range names {
-		rec, err := state.Load(name)
-		if err != nil {
-			return err
-		}
-		stopped := false
-		if rec != nil {
-			if rec.Alive() && strings.Contains(tunnel.ProcessCommand(rec.PID), "ssmtun") {
-				if err := stopWorker(rec.PID); err != nil {
-					problems = append(problems, fmt.Sprintf("[%s] %v", name, err))
-				} else {
-					stopped = true
-				}
-			}
-			_ = state.Remove(name)
-		}
+	names = dedupe(names)
+	results := make([]downResult, len(names))
+	var wg sync.WaitGroup
+	for i, name := range names {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i] = stopTarget(cfg, name, force)
+		}()
+	}
+	wg.Wait()
 
-		port := 0
-		if t, ok := cfg.Targets[name]; ok {
-			port = t.LocalPort
-		} else if rec != nil {
-			port = rec.LocalPort
+	var problems []string
+	for _, r := range results {
+		if r.err != nil {
+			return r.err
 		}
-		if port != 0 && probe.PortInUse(port) {
-			pids := tunnel.ListenerPIDs(port)
-			if force {
-				for _, pid := range pids {
-					killPID(pid)
-				}
-				time.Sleep(500 * time.Millisecond)
-				if probe.PortInUse(port) {
-					problems = append(problems, fmt.Sprintf("[%s] port %d is still in use after --force", name, port))
-				} else {
-					fmt.Printf("[%s] killed %d process(es) holding port %d\n", name, len(pids), port)
-					stopped = true
-				}
-			} else {
-				problems = append(problems, fmt.Sprintf("[%s] port %d is still in use by pid(s) %v; rerun with --force", name, port, pids))
-			}
+		for _, line := range r.lines {
+			fmt.Println(line)
 		}
-		if stopped {
-			fmt.Printf("[%s] stopped\n", name)
-		} else if rec == nil && len(problems) == 0 {
-			fmt.Printf("[%s] not running\n", name)
-		}
+		problems = append(problems, r.problems...)
 	}
 	if len(problems) > 0 {
 		return errors.New(strings.Join(problems, "\n"))
 	}
 	return nil
+}
+
+type downResult struct {
+	lines    []string
+	problems []string
+	err      error
+}
+
+func stopTarget(cfg *config.Config, name string, force bool) downResult {
+	var res downResult
+	rec, err := state.Load(name)
+	if err != nil {
+		res.err = err
+		return res
+	}
+	stopped := false
+	if rec != nil {
+		if rec.Alive() && strings.Contains(tunnel.ProcessCommand(rec.PID), "ssmtun") {
+			if err := stopWorker(rec.PID); err != nil {
+				res.problems = append(res.problems, fmt.Sprintf("[%s] %v", name, err))
+			} else {
+				stopped = true
+			}
+		}
+		_ = state.Remove(name)
+	}
+
+	port := 0
+	if t, ok := cfg.Targets[name]; ok {
+		port = t.LocalPort
+	} else if rec != nil {
+		port = rec.LocalPort
+	}
+	if port != 0 && probe.PortInUse(port) {
+		pids := tunnel.ListenerPIDs(port)
+		if force {
+			var wg sync.WaitGroup
+			for _, pid := range pids {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					killPID(pid)
+				}()
+			}
+			wg.Wait()
+			time.Sleep(500 * time.Millisecond)
+			if probe.PortInUse(port) {
+				res.problems = append(res.problems, fmt.Sprintf("[%s] port %d is still in use after --force", name, port))
+			} else {
+				res.lines = append(res.lines, fmt.Sprintf("[%s] killed %d process(es) holding port %d", name, len(pids), port))
+				stopped = true
+			}
+		} else {
+			res.problems = append(res.problems, fmt.Sprintf("[%s] port %d is still in use by pid(s) %v; rerun with --force", name, port, pids))
+		}
+	}
+	if stopped {
+		res.lines = append(res.lines, fmt.Sprintf("[%s] stopped", name))
+	} else if rec == nil && len(res.problems) == 0 {
+		res.lines = append(res.lines, fmt.Sprintf("[%s] not running", name))
+	}
+	return res
+}
+
+func dedupe(names []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, n := range names {
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func stopWorker(pid int) error {
@@ -126,7 +177,7 @@ func stopWorker(pid int) error {
 	if err := p.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("signal pid %d: %w", pid, err)
 	}
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
 		if !state.ProcessAlive(pid) {
 			return nil
